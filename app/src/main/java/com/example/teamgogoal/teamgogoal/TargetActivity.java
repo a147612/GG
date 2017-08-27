@@ -25,7 +25,11 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -40,6 +44,7 @@ public class TargetActivity extends AppCompatActivity {
     LinearLayout targetll;
     EditText targetNameEt,targeContentEt,startTimeEt,endTimeEt,participatorTxt;
     Button submitTargetBtn,clearTargetBtn,cannelBtn;
+    ImageView targetProfilePicture;
     View addTargetMsg;
     Spinner spinner;
     String nextID="",currID="";
@@ -69,6 +74,10 @@ public class TargetActivity extends AppCompatActivity {
             submitTargetBtn=(Button)addTargetMsg.findViewById(R.id.submitTargetBtn);
             clearTargetBtn=(Button)addTargetMsg.findViewById(R.id.clearMessageBtn);
             cannelBtn=(Button)addTargetMsg.findViewById(R.id.cannelBtn);
+
+            targetProfilePicture=(ImageView)findViewById(R.id.targetProfilePicture);
+
+
             spinner=(Spinner) addTargetMsg.findViewById(R.id.spinner);
             dialog.setView(addTargetMsg);
             dialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
@@ -78,9 +87,28 @@ public class TargetActivity extends AppCompatActivity {
                 }
             });
             user=LoginActivity.getUser();
+            String imageUrl = localhost + "profile picture/" + user.uid;
             new DbOperationTask().execute("readTarget");
 
 
+            new AsyncTask<String, Void, Bitmap>()
+            {
+                @Override
+                protected Bitmap doInBackground(String... params)
+                {
+                    String url = params[0];
+                    return getBitmapFromURL(url);
+                }
+
+                @Override
+                protected void onPostExecute(Bitmap result)
+                {
+                    targetProfilePicture.setImageBitmap (result);
+                    super.onPostExecute(result);
+                }
+            }.execute(imageUrl);
+
+            targetProfilePicture=toCircleImage(R.id.targetProfilePicture,targetProfilePicture);
            /* Thread t=new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -117,8 +145,20 @@ public class TargetActivity extends AppCompatActivity {
             case R.id.button2:
                 toRequest();
                 break;
+            //帥哥峻禾部分
+            case R.id.editProfile:
+                toEditProfile();
+                break;
         }
     }
+
+    //帥哥峻禾部分
+    private void toEditProfile() {
+        intent=new Intent();
+        intent.setClass(TargetActivity.this, EditProfile.class);
+        startActivity(intent);
+    }
+
     protected  void toRequest(){
         if(request==null){
             Bundle bundle = getIntent().getExtras();
@@ -266,65 +306,65 @@ public class TargetActivity extends AppCompatActivity {
     }
 
     protected void fresh(Map<String,TargetDB.TargetDetail> map) {
-            Iterator it = map.entrySet().iterator();
+        Iterator it = map.entrySet().iterator();
 
-            while (it.hasNext()) {
+        while (it.hasNext()) {
 
-                Map.Entry<String, TargetDB.TargetDetail> set = (Map.Entry) it.next();
-                LinearLayout tll = new LinearLayout(this);
-                LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-                layoutParams.setMargins(30, 20, 30, 0);
-                tll.setOrientation(LinearLayout.HORIZONTAL);
-                tll.setLayoutParams(layoutParams);
-                tll.setOnLongClickListener(new View.OnLongClickListener() {
-                    @Override
-                    public boolean onLongClick(View view) {
-                        final AlertDialog mutiItemDialog = getMutiItemDialog(new String[]{"read", "update", "delete"}, view.getId());
-                        mutiItemDialog.show();
-                        return false;
-                    }
-
-                });
-
-                tll.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        enterTaskActivity(view.getId());
-                    }
-                });
-
-                ImageView img = new ImageView(this);
-                img=toCircleImage(R.drawable.images,img);
-                //等比例放大縮小
-                img.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-                //允許img可以改變大小
-                img.setAdjustViewBounds(true);
-                //建立layout，並且設定大小
-                layoutParams = new LinearLayout.LayoutParams(250, 250);
-                layoutParams.setMargins(0, 0, 20, 0);
-                //設定好的layout丟給imageview
-                img.setLayoutParams(layoutParams);
-
-                TextView txt = new TextView(this);
-                txt.setGravity(Gravity.BOTTOM);
-
-                txt.setText(set.getValue().targetName);
-
-                tll.addView(img);
-                tll.addView(txt);
-                String s=set.getValue().tid.trim();
-                Integer key = Integer.parseInt(s);
-                tll.setId(key);
-
-                TargetUIStructure targetUIS=new TargetUIStructure(set.getValue(),tll,img,txt);
-                targetMap.put(key, targetUIS);
-                try {
-                    targetll.addView(tll);
-                }catch(Exception e){
-                    Log.v("jim12",e.toString());
+            Map.Entry<String, TargetDB.TargetDetail> set = (Map.Entry) it.next();
+            LinearLayout tll = new LinearLayout(this);
+            LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            layoutParams.setMargins(30, 20, 30, 0);
+            tll.setOrientation(LinearLayout.HORIZONTAL);
+            tll.setLayoutParams(layoutParams);
+            tll.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View view) {
+                    final AlertDialog mutiItemDialog = getMutiItemDialog(new String[]{"read", "update", "delete"}, view.getId());
+                    mutiItemDialog.show();
+                    return false;
                 }
+
+            });
+
+            tll.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    enterTaskActivity(view.getId());
+                }
+            });
+
+            ImageView img = new ImageView(this);
+            img=toCircleImage(R.drawable.images,img);
+            //等比例放大縮小
+            img.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+            //允許img可以改變大小
+            img.setAdjustViewBounds(true);
+            //建立layout，並且設定大小
+            layoutParams = new LinearLayout.LayoutParams(250, 250);
+            layoutParams.setMargins(0, 0, 20, 0);
+            //設定好的layout丟給imageview
+            img.setLayoutParams(layoutParams);
+
+            TextView txt = new TextView(this);
+            txt.setGravity(Gravity.BOTTOM);
+
+            txt.setText(set.getValue().targetName);
+
+            tll.addView(img);
+            tll.addView(txt);
+            String s=set.getValue().tid.trim();
+            Integer key = Integer.parseInt(s);
+            tll.setId(key);
+
+            TargetUIStructure targetUIS=new TargetUIStructure(set.getValue(),tll,img,txt);
+            targetMap.put(key, targetUIS);
+            try {
+                targetll.addView(tll);
+            }catch(Exception e){
+                Log.v("jim12",e.toString());
             }
+        }
 
     }
     public AlertDialog getMutiItemDialog(final String[] cmd,final int id) {
@@ -339,7 +379,7 @@ public class TargetActivity extends AppCompatActivity {
                         read(id);
                         submitTargetBtn.setEnabled(false);
                         clearTargetBtn.setEnabled(false);
-                    break;
+                        break;
                     case "update":
                         read(id);
                         submitTargetBtn.setText("更新資料");
@@ -422,7 +462,23 @@ public class TargetActivity extends AppCompatActivity {
         msg.dismiss();
     }
 
-
+    public Bitmap getBitmapFromURL(String imageUrl){
+        try
+        {
+            URL url = new URL(imageUrl);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setDoInput(true);
+            connection.connect();
+            InputStream input = connection.getInputStream();
+            Bitmap bitmap = BitmapFactory.decodeStream(input);
+            return bitmap;
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+            return null;
+        }
+    }
 
     //background run
     private class DbOperationTask  extends AsyncTask<String, Void, Void> {
@@ -431,7 +487,7 @@ public class TargetActivity extends AppCompatActivity {
             switch (cmd) {
                 case "readTarget":
                     final Map<String,TargetDB.TargetDetail> t;
-                     t=db.readTarget();
+                    t=db.readTarget();
                     runOnUiThread(new Runnable() {
                         public void run() {
                             try{
@@ -441,6 +497,7 @@ public class TargetActivity extends AppCompatActivity {
                             }
                         }
                     });
+
 
                     nextID=db.targetIndex();
                     break;
@@ -458,6 +515,7 @@ public class TargetActivity extends AppCompatActivity {
                 case "deleteParticipator":
                     db.deleteParticipator(params[1],params[2]);
                     break;
+
 
 
             }

@@ -28,8 +28,8 @@ import java.util.ArrayList;
 
 public class LoginActivity extends AppCompatActivity {
     //public static final String localhost="http://169.254.68.146/DB/";
-    public static final String ip="106.107.161.179";
-   // public static final String ip="192.168.0.101";
+    public static final String ip="192.168.1.102";
+    // public static final String ip="192.168.0.101";
     public static final String localhost="http://"+ip+"/TeamGoGoal/";
     ArrayList<User> users;
     Intent intent;
@@ -157,9 +157,10 @@ public class LoginActivity extends AppCompatActivity {
                     String uid = obj.getString("uid");
                     String account = obj.getString("account");
                     String password = obj.getString("password");
+                    String name = obj.getString("name");
                     String role = obj.getString("role");
                     Log.d("JSON:",uid+"/"+account+"/"+password+"/"+role+"/");
-                    User t = new User(uid,account,password,role);
+                    User t = new User(uid,account,password,name,role);
                     users.add(t);
                 }
             } catch (JSONException e) {
@@ -169,11 +170,12 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     public class User implements  Cloneable{
-        String uid,account,password,state;
-        public User(String uid,String account,String password,String state){
+        String uid,account,password,name,state;
+        public User(String uid,String account,String password,String name,String state){
             this.uid = uid;
             this.account = account;
             this.password = password;
+            this.name = name;
             this.state=state;
         }
         protected User clone() throws CloneNotSupportedException {
@@ -188,7 +190,7 @@ public class LoginActivity extends AppCompatActivity {
         boolean yn=false;
 
         for(User u:users){
-           if(u.account.equals(account)){
+            if(u.account.equals(account)){
                 if(u.password.equals(password)){
                     yn=true;
                     try {
@@ -202,7 +204,7 @@ public class LoginActivity extends AppCompatActivity {
         }
         if(yn){
             intent = new Intent();
-           // new StartTrans().execute();
+            // new StartTrans().execute();
             socketTrans=new SocketTrans(getApplicationContext());
             socketTrans.setParams("register_online",user.account);
 
