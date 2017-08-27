@@ -33,7 +33,7 @@ public class LoginActivity extends AppCompatActivity {
     public static final String localhost="http://"+ip+"/TeamGoGoal/";
     ArrayList<User> users;
     Intent intent;
-    /-------------------/
+
     public static  User user;
     public static SocketTrans socketTrans;
     @Override
@@ -41,7 +41,7 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
         new TransTask().execute(localhost+"connectAccountDB.php");
-
+        
     }
     public static User getUser(){return user;}
     public static String getLocalHost(){return localhost;}
