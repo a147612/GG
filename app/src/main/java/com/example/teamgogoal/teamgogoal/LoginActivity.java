@@ -41,7 +41,7 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
         new TransTask().execute(localhost+"connectAccountDB.php");
-        
+        System.out.print("123");
     }
     public static User getUser(){return user;}
     public static String getLocalHost(){return localhost;}
