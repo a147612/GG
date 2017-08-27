@@ -33,7 +33,6 @@ public class LoginActivity extends AppCompatActivity {
     public static final String localhost="http://"+ip+"/TeamGoGoal/";
     ArrayList<User> users;
     Intent intent;
-    /-------------------/
     public static  User user;
     public static SocketTrans socketTrans;
     @Override
