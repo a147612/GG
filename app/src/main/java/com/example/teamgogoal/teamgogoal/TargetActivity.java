@@ -13,22 +13,38 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.MultiAutoCompleteTextView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Serializable;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 public class TargetActivity extends AppCompatActivity {
@@ -40,10 +56,15 @@ public class TargetActivity extends AppCompatActivity {
     LinearLayout targetll;
     EditText targetNameEt,targeContentEt,startTimeEt,endTimeEt,participatorTxt;
     Button submitTargetBtn,clearTargetBtn,cannelBtn;
+    ImageView targetProfilePicture;
     View addTargetMsg;
     Spinner spinner;
     String nextID="",currID="";
     Intent intent;
+
+    //8/20:AutoCompleteTextView
+    MultiAutoCompleteTextView mactv;
+
     final String[] list = {"earth", "jupiter", "mars"};
     String request=null;
     SocketTrans socketTrans=LoginActivity.socketTrans;
@@ -52,11 +73,7 @@ public class TargetActivity extends AppCompatActivity {
         try{
             super.onCreate(savedInstanceState);
             setContentView(R.layout.activity_target);
-
             targetll=(LinearLayout) findViewById(R.id.taskLinearLayout);
-
-
-
             db= new TargetDB();
             LayoutInflater factory = LayoutInflater.from(this);
             addTargetMsg = factory.inflate(R.layout.activity_target_add_msg, null);
@@ -65,10 +82,23 @@ public class TargetActivity extends AppCompatActivity {
             targeContentEt=(EditText) addTargetMsg.findViewById(R.id.targetContent);
             startTimeEt=(EditText) addTargetMsg.findViewById(R.id.startTimeTxt);
             endTimeEt=(EditText) addTargetMsg.findViewById(R.id.EndTimeTxt);
-            participatorTxt=(EditText) addTargetMsg.findViewById(R.id.participatorTxt);
+
+            // Date:8/20-監聽文字變更開始
+            mactv = (MultiAutoCompleteTextView)addTargetMsg.findViewById(R.id.multiAutoCompleteTextView);
+            mactv.setDropDownHeight(200); //設定高度
+            mactv.setThreshold(1);
+            mactv.setTokenizer(new MultiAutoCompleteTextView.CommaTokenizer());
+            // 初始化搜尋資料
+            initmactv();
+
+            // Date:8/20-監聽文字變更結束
+
+
+            //participatorTxt=(EditText) addTargetMsg.findViewById(R.id.participatorTxt);
             submitTargetBtn=(Button)addTargetMsg.findViewById(R.id.submitTargetBtn);
             clearTargetBtn=(Button)addTargetMsg.findViewById(R.id.clearMessageBtn);
             cannelBtn=(Button)addTargetMsg.findViewById(R.id.cannelBtn);
+            targetProfilePicture=(ImageView)findViewById(R.id.targetProfilePicture);
             spinner=(Spinner) addTargetMsg.findViewById(R.id.spinner);
             dialog.setView(addTargetMsg);
             dialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
@@ -78,25 +108,78 @@ public class TargetActivity extends AppCompatActivity {
                 }
             });
             user=LoginActivity.getUser();
-            new DbOperationTask().execute("readTarget");
 
 
-           /* Thread t=new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    String result=socketTrans.getResult();
-                    Toast.makeText(TargetActivity.this,result,Toast.LENGTH_SHORT).show();
-                }
-            });*/
+
         }catch(Exception e){
             Log.v("jim",e.toString());
         }
     }
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // TODO Auto-generated method stub
+
+        if (keyCode == KeyEvent.KEYCODE_BACK) { // 攔截返回鍵
+            targetMap.clear();
+            finish();
+        }
+        return true;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loading();
+    }
+    protected  void loading(){
+        synchronized(this) {
+            new DbOperationTask().execute("readTarget");
+
+            //帥哥峻禾部分
+            String imageUrl = localhost + "profile picture/" + user.uid;
+            new AsyncTask<String, Void, Bitmap>()
+            {
+                @Override
+                protected Bitmap doInBackground(String... params)
+                {
+                    String url = params[0];
+                    return getBitmapFromURL(url);
+                }
+
+                @Override
+                protected void onPostExecute(Bitmap result)
+                {
+                    targetProfilePicture.setImageBitmap (result);
+                    super.onPostExecute(result);
+                }
+            }.execute(imageUrl);
+        }
+    }
+
+    //帥哥峻禾部分
+    public Bitmap getBitmapFromURL(String imageUrl){
+        try
+        {
+            URL url = new URL(imageUrl);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setDoInput(true);
+            connection.connect();
+            InputStream input = connection.getInputStream();
+            Bitmap bitmap = BitmapFactory.decodeStream(input);
+            return bitmap;
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     public void onClick(View view){
         int id=view.getId();
         switch (id){
             case R.id.showAddTargetBtn:
                 showTarget();
+                //participatorTxt.setText(user.account);
                 break;
             case R.id.submitTargetBtn:
                 if(currID.equals("")) addTarget();
@@ -117,16 +200,23 @@ public class TargetActivity extends AppCompatActivity {
             case R.id.button2:
                 toRequest();
                 break;
+            case R.id.loadBtn:
+                loading();
+                break;
+            //帥哥峻禾部分
+            case R.id.editProfile:
+                toEditProfile();
+                break;
         }
     }
-    protected  void toRequest(){
-        if(request==null){
-            Bundle bundle = getIntent().getExtras();
-            request=bundle.getString("loadingRequest");
-        }
-
+    //帥哥峻禾部分
+    private void toEditProfile() {
         intent=new Intent();
-        intent.putExtra("loadingRequest",request);
+        intent.setClass(TargetActivity.this, EditProfile.class);
+        startActivity(intent);
+    }
+    protected  void toRequest(){
+        intent=new Intent();
         intent.setClass(TargetActivity.this, RequestActivity.class);
         startActivity(intent);
     }
@@ -135,6 +225,7 @@ public class TargetActivity extends AppCompatActivity {
         try{
             if(msg==null){
                 msg=dialog.show();
+
             }else{
                 msg.show();
             }
@@ -147,11 +238,6 @@ public class TargetActivity extends AppCompatActivity {
             if((targetNameEt.getText().toString().equals("") || targeContentEt.getText().toString().equals("") || startTimeEt.getText().toString().equals("") || endTimeEt.getText().toString().equals("") || participatorTxt.getText().toString().equals(""))){
                 Toast.makeText(this,"請輸入完整資訊",Toast.LENGTH_SHORT).show();
             }else{
-
-
-
-
-
                 LinearLayout tll=new LinearLayout(this);
                 LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -161,8 +247,16 @@ public class TargetActivity extends AppCompatActivity {
                 tll.setOnLongClickListener(new View.OnLongClickListener(){
                     @Override
                     public boolean onLongClick(View view) {
-                        final AlertDialog mutiItemDialog = getMutiItemDialog(new String[]{"read","update","delete"},view.getId());
-                        mutiItemDialog.show();
+                        Integer id=view.getId();
+                        String auth=targetMap.get(id).td.auth.trim();
+                        if(auth.equals(user.account)){
+                            final AlertDialog mutiItemDialog = getMutiItemDialog(new String[]{"read","update","delete"},view.getId());
+                            mutiItemDialog.show();
+                        }else{
+                            submitTargetBtn.setEnabled(false);
+                            clearTargetBtn.setEnabled(false);
+                            read(id);
+                        }
                         return false;
                     }
                 });
@@ -211,6 +305,11 @@ public class TargetActivity extends AppCompatActivity {
                 Log.v("jim",nextID);
                 TargetUIStructure targetUIS=new TargetUIStructure(td,tll,img,txt);
                 targetMap.put(k,targetUIS);
+
+                //帥哥峻禾部分
+                socketTrans.setParams("initial_target",nextID,param4);
+                socketTrans.send(socketTrans.getParams());
+
                 msg.dismiss();
                 Toast.makeText(this,"新增成功",Toast.LENGTH_SHORT).show();
                 initial();
@@ -271,58 +370,69 @@ public class TargetActivity extends AppCompatActivity {
             while (it.hasNext()) {
 
                 Map.Entry<String, TargetDB.TargetDetail> set = (Map.Entry) it.next();
-                LinearLayout tll = new LinearLayout(this);
-                LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-                layoutParams.setMargins(30, 20, 30, 0);
-                tll.setOrientation(LinearLayout.HORIZONTAL);
-                tll.setLayoutParams(layoutParams);
-                tll.setOnLongClickListener(new View.OnLongClickListener() {
-                    @Override
-                    public boolean onLongClick(View view) {
-                        final AlertDialog mutiItemDialog = getMutiItemDialog(new String[]{"read", "update", "delete"}, view.getId());
-                        mutiItemDialog.show();
-                        return false;
-                    }
-
-                });
-
-                tll.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        enterTaskActivity(view.getId());
-                    }
-                });
-
-                ImageView img = new ImageView(this);
-                img=toCircleImage(R.drawable.images,img);
-                //等比例放大縮小
-                img.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-                //允許img可以改變大小
-                img.setAdjustViewBounds(true);
-                //建立layout，並且設定大小
-                layoutParams = new LinearLayout.LayoutParams(250, 250);
-                layoutParams.setMargins(0, 0, 20, 0);
-                //設定好的layout丟給imageview
-                img.setLayoutParams(layoutParams);
-
-                TextView txt = new TextView(this);
-                txt.setGravity(Gravity.BOTTOM);
-
-                txt.setText(set.getValue().targetName);
-
-                tll.addView(img);
-                tll.addView(txt);
-                String s=set.getValue().tid.trim();
+                String s = set.getValue().tid.trim();
                 Integer key = Integer.parseInt(s);
-                tll.setId(key);
+                if(!targetMap.containsKey(key)) {
+                    LinearLayout tll = new LinearLayout(this);
+                    LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                    layoutParams.setMargins(30, 20, 30, 0);
+                    tll.setOrientation(LinearLayout.HORIZONTAL);
+                    tll.setLayoutParams(layoutParams);
+                    tll.setOnLongClickListener(new View.OnLongClickListener() {
+                        @Override
+                        public boolean onLongClick(View view) {
+                            Integer id=view.getId();
+                            String auth=targetMap.get(id).td.auth.trim();
+                            if(auth.equals(user.account)){
+                                final AlertDialog mutiItemDialog = getMutiItemDialog(new String[]{"read","update","delete"},view.getId());
+                                mutiItemDialog.show();
+                            }else{
+                                submitTargetBtn.setEnabled(false);
+                                clearTargetBtn.setEnabled(false);
+                                read(id);
+                            }
+                            return false;
+                        }
 
-                TargetUIStructure targetUIS=new TargetUIStructure(set.getValue(),tll,img,txt);
-                targetMap.put(key, targetUIS);
-                try {
-                    targetll.addView(tll);
-                }catch(Exception e){
-                    Log.v("jim12",e.toString());
+                    });
+
+                    tll.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            enterTaskActivity(view.getId());
+                        }
+                    });
+
+                    ImageView img = new ImageView(this);
+                    img = toCircleImage(R.drawable.images, img);
+                    //等比例放大縮小
+                    img.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+                    //允許img可以改變大小
+                    img.setAdjustViewBounds(true);
+                    //建立layout，並且設定大小
+                    layoutParams = new LinearLayout.LayoutParams(250, 250);
+                    layoutParams.setMargins(0, 0, 20, 0);
+                    //設定好的layout丟給imageview
+                    img.setLayoutParams(layoutParams);
+
+                    TextView txt = new TextView(this);
+                    txt.setGravity(Gravity.BOTTOM);
+
+                    txt.setText(set.getValue().targetName);
+
+                    tll.addView(img);
+                    tll.addView(txt);
+
+                    tll.setId(key);
+
+                    TargetUIStructure targetUIS = new TargetUIStructure(set.getValue(), tll, img, txt);
+                    targetMap.put(key, targetUIS);
+                    try {
+                        targetll.addView(tll);
+                    } catch (Exception e) {
+                        Log.v("jim12", e.toString());
+                    }
                 }
             }
 
@@ -408,6 +518,7 @@ public class TargetActivity extends AppCompatActivity {
 
         int key=Integer.parseInt(currID.trim());
         TargetUIStructure targetUIS= targetMap.get(key);
+        String param9=targetUIS.td.participator;
         targetUIS.td.targetName=param1;
         targetUIS.td.targetContent=param2;
         targetUIS.td.startTime=param3;
@@ -417,7 +528,7 @@ public class TargetActivity extends AppCompatActivity {
         targetUIS.txtName.setText(param1);
 
         //String param8=participatorTxt.getText().toString();
-        new DbOperationTask().execute("updateTarget",currID,param1,param2,param3,param4,param5,param6,param7,param8);
+        new DbOperationTask().execute("updateTarget",currID,param1,param2,param3,param4,param5,param6,param7,param8,param9);
         currID="";
         msg.dismiss();
     }
@@ -447,10 +558,11 @@ public class TargetActivity extends AppCompatActivity {
                 case "createTarget":
                     db.createTarget(params[1],params[2],params[3],params[4],params[5],params[6],params[7],params[8]);
                     db.createParticipator(params[1],params[9]);
+
                     nextID=db.targetIndex();
                     break;
                 case "updateTarget":
-                    db.updateTarget(params[1],params[2],params[3],params[4],params[5],params[6],params[7],params[8],params[9]);
+                    db.updateTarget(params[1],params[2],params[3],params[4],params[5],params[6],params[7],params[8],params[9],params[10]);
                     break;
                 case "deleteParticipator_all":
                     db.deleteTargetAll(params[1]);
@@ -493,10 +605,76 @@ public class TargetActivity extends AppCompatActivity {
         }
     }
 
+
+
+
+
     //-----------------帥哥建興開始-----------------
     public void checkReview(View view) {
         Intent intent = new Intent();
         intent.setClass(this,Review.class);
         startActivity(intent);
     }
+
+    // Date:8/20 尋找帳號開始---------------------------
+    private void initmactv() {
+        String phpurl = localhost + "searchID.php";
+        new TransTask().execute(phpurl);
+    }
+
+    class TransTask extends AsyncTask<String, Void, String> {
+        @Override
+        protected String doInBackground(String... params) {
+            StringBuilder sb = new StringBuilder();
+            try {
+                URL url = new URL(params[0]);
+                BufferedReader in = new BufferedReader(
+                        new InputStreamReader(url.openStream()));
+                String line = in.readLine();
+                while (line != null) {
+                    Log.d("HTTP", line);
+                    sb.append(line);
+                    line = in.readLine();
+                }
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return sb.toString();
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+            List list = parseJSON(s);
+            initListView(list);
+        }
+
+        private List parseJSON(String s) {
+            List list = new ArrayList();
+            try {
+                JSONArray array = new JSONArray(s);
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject obj = array.getJSONObject(i);
+                    list.add(obj.getString("account"));
+                }
+
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            Log.d("FFFF",Integer.toString(list.size()));
+            return list;
+        }
+    }
+
+    public  void initListView(List list){
+        ArrayAdapter adapter = new ArrayAdapter(this,android.R.layout.simple_list_item_1,list);
+        mactv.setAdapter(adapter);
+        adapter.notifyDataSetChanged();
+    }
+
+
+
+    // Date:8/20 尋找帳號結束---------------------------
 }
